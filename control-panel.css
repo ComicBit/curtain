@@ -3,7 +3,7 @@
   position: fixed;
   right: 20px;
   bottom: 20px;
-  width: 210px;
+  width: 170px;
   padding: 15px;
   background: #000;
   border-radius: 20px;
@@ -32,19 +32,30 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding-bottom: 10px;
   width: 100%;
-  text-align: center;
+  display: flex;
+  align-items: center;
   font-family: Arial, sans-serif;
   color: white;
+}
+
+.header-icon {
+  margin-right: 10px;
+  width: 16px;
+  height: 16px;
 }
 
 #control-panel label {
   all: unset;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   width: 100%;
   font-family: Arial, sans-serif;
   color: white;
+}
+
+#control-panel .option-text {
+  margin-left: 10px;
 }
 
 #control-panel input[type="checkbox"] {
@@ -54,8 +65,8 @@
 #close-panel {
   all: unset;
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 15px;
+  right: 15px;
   cursor: pointer;
 }
 
@@ -67,8 +78,26 @@
   stroke-width: 2;
 }
 
-.placeholder {
-  all: unset;
-  background-color: transparent !important;
-  display: inline-block !important;
+#control-buttons {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+#control-buttons a {
+  background-color: white;
+  border: none;
+  color: black;
+  padding: 5px 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%; /* Extending the button */
+}
+
+#control-buttons a:hover {
+  background-color: #f0f0f0;
 }
