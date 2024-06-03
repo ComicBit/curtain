@@ -1,6 +1,5 @@
 if (typeof controlPanelInjected === "undefined") {
   let controlPanelInjected = true;
-  let currentUrl = window.location.hostname;
   let mediaSettings = {
     images: true,
     backgrounds: true,
@@ -112,12 +111,21 @@ if (typeof controlPanelInjected === "undefined") {
       "*:not(#curtain-control-panel):not(#curtain-control-panel *)"
     );
     elements.forEach((element) => {
+      const inlineBgImage = element.style.backgroundImage;
+
       if (enable) {
-        // Remove the inline background-image style to restore original background
-        element.style.removeProperty("background-image");
+        // Restore the original background image from the custom attribute
+        const originalBgImage = element.getAttribute("data-original-bg-image");
+        if (originalBgImage) {
+          element.style.backgroundImage = originalBgImage;
+          element.removeAttribute("data-original-bg-image");
+        }
       } else {
-        // Set the inline background-image style to none
-        element.style.backgroundImage = "none";
+        // Store the original background image in a custom attribute
+        if (inlineBgImage && inlineBgImage !== "none") {
+          element.setAttribute("data-original-bg-image", inlineBgImage);
+          element.style.backgroundImage = "none";
+        }
       }
     });
   }
