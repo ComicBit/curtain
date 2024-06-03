@@ -6,19 +6,20 @@ if (typeof controlPanelInjected === "undefined") {
     backgrounds: true,
     videos: true,
     svgs: true,
+    greyscale: false,
   };
 
   function injectControlPanel() {
-    if (document.getElementById("control-panel")) return;
+    if (document.getElementById("curtain-control-panel")) return;
 
-    const controlPanel = document.createElement("div");
-    controlPanel.id = "control-panel";
+    const controlPanelContainer = document.createElement("div");
+    controlPanelContainer.id = "curtain-control-panel-container";
 
     fetch(chrome.runtime.getURL("control-panel.html"))
       .then((response) => response.text())
       .then((html) => {
-        controlPanel.innerHTML = html;
-        document.body.appendChild(controlPanel);
+        controlPanelContainer.innerHTML = html;
+        document.body.appendChild(controlPanelContainer);
         attachStyles();
         attachEventListeners();
         restoreSettings();
@@ -38,21 +39,24 @@ if (typeof controlPanelInjected === "undefined") {
     const toggleBackgrounds = document.getElementById("toggle-backgrounds");
     const toggleVideos = document.getElementById("toggle-videos");
     const toggleSvgs = document.getElementById("toggle-svgs");
-    const closePanel = document.getElementById("close-panel");
+    const toggleGreyscale = document.getElementById("toggle-greyscale");
+    const closePanel = document.getElementById("curtain-close-panel");
 
     if (
       toggleImages &&
       toggleBackgrounds &&
       toggleVideos &&
       toggleSvgs &&
+      toggleGreyscale &&
       closePanel
     ) {
       toggleImages.addEventListener("change", handleCheckboxChange);
       toggleBackgrounds.addEventListener("change", handleCheckboxChange);
       toggleVideos.addEventListener("change", handleCheckboxChange);
       toggleSvgs.addEventListener("change", handleCheckboxChange);
+      toggleGreyscale.addEventListener("change", handleCheckboxChange); // Ensure this line exists
       closePanel.addEventListener("click", function () {
-        document.getElementById("control-panel").style.display = "none";
+        document.getElementById("curtain-control-panel").style.display = "none";
       });
     } else {
       console.error(
@@ -67,6 +71,8 @@ if (typeof controlPanelInjected === "undefined") {
       document.getElementById("toggle-backgrounds").checked;
     mediaSettings.videos = document.getElementById("toggle-videos").checked;
     mediaSettings.svgs = document.getElementById("toggle-svgs").checked;
+    mediaSettings.greyscale =
+      document.getElementById("toggle-greyscale").checked;
     saveSettings();
     handleMediaSettings();
   }
@@ -80,6 +86,7 @@ if (typeof controlPanelInjected === "undefined") {
       "videos"
     );
     toggleMedia(document.querySelectorAll("svg"), mediaSettings.svgs, "svgs");
+    toggleGreyscale(mediaSettings.greyscale);
   }
 
   function toggleImages(enable) {
@@ -102,7 +109,7 @@ if (typeof controlPanelInjected === "undefined") {
 
   function toggleBackgrounds(enable) {
     const elements = document.querySelectorAll(
-      "*:not(#control-panel):not(#control-panel *)"
+      "*:not(#curtain-control-panel):not(#curtain-control-panel *)"
     );
     elements.forEach((element) => {
       const bgImage = window.getComputedStyle(element).backgroundImage;
@@ -140,6 +147,28 @@ if (typeof controlPanelInjected === "undefined") {
     });
   }
 
+  function toggleGreyscale(enable) {
+    const greyscaleStyleId = "greyscale-style";
+    let greyscaleStyle = document.getElementById(greyscaleStyleId);
+
+    if (enable) {
+      if (!greyscaleStyle) {
+        greyscaleStyle = document.createElement("style");
+        greyscaleStyle.id = greyscaleStyleId;
+        greyscaleStyle.innerHTML = `
+        html {
+          filter: grayscale(100%);
+        }
+      `;
+        document.head.appendChild(greyscaleStyle);
+      }
+    } else {
+      if (greyscaleStyle) {
+        greyscaleStyle.remove();
+      }
+    }
+  }
+
   function restoreSettings() {
     chrome.storage.local.get(["rules"], (result) => {
       if (result.rules && result.rules[currentUrl]) {
@@ -149,6 +178,8 @@ if (typeof controlPanelInjected === "undefined") {
           mediaSettings.backgrounds;
         document.getElementById("toggle-videos").checked = mediaSettings.videos;
         document.getElementById("toggle-svgs").checked = mediaSettings.svgs;
+        document.getElementById("toggle-greyscale").checked =
+          mediaSettings.greyscale;
         handleMediaSettings(); // Apply settings immediately
       }
     });
@@ -178,7 +209,7 @@ if (typeof controlPanelInjected === "undefined") {
     if (message.action === "showControlPanel") {
       if (document.readyState === "complete") {
         injectControlPanel();
-        const controlPanel = document.getElementById("control-panel");
+        const controlPanel = document.getElementById("curtain-control-panel");
         if (controlPanel) {
           controlPanel.style.display = "block";
         }
@@ -188,7 +219,7 @@ if (typeof controlPanelInjected === "undefined") {
         window.addEventListener("load", () => {
           hideLoadingPopup();
           injectControlPanel();
-          const controlPanel = document.getElementById("control-panel");
+          const controlPanel = document.getElementById("curtain-control-panel");
           if (controlPanel) {
             controlPanel.style.display = "block";
           }
@@ -200,7 +231,7 @@ if (typeof controlPanelInjected === "undefined") {
 
   function showLoadingPopup() {
     const loadingPopup = document.createElement("div");
-    loadingPopup.id = "loading-popup";
+    loadingPopup.id = "curtain-loading-popup";
     loadingPopup.style = `
       position: fixed;
       top: 50%;
@@ -218,7 +249,7 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function hideLoadingPopup() {
-    const loadingPopup = document.getElementById("loading-popup");
+    const loadingPopup = document.getElementById("curtain-loading-popup");
     if (loadingPopup) {
       document.body.removeChild(loadingPopup);
     }

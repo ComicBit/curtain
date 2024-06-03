@@ -1,4 +1,4 @@
-#control-panel {
+#curtain-control-panel {
   all: unset;
   position: fixed;
   right: 20px;
@@ -16,17 +16,18 @@
   gap: 10px;
   color: white;
   font-family: Arial, sans-serif;
-  z-index: 2147483647;
+  z-index: 10000; /* Ensure it's on top */
+  filter: none !important;
 }
 
-#control-panel-content {
+#curtain-control-panel-content {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-#control-panel h3 {
+#curtain-control-panel h3 {
   all: unset;
   margin: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
@@ -38,13 +39,7 @@
   color: white;
 }
 
-.header-icon {
-  margin-right: 10px;
-  width: 16px;
-  height: 16px;
-}
-
-#control-panel label {
+.curtain-label {
   all: unset;
   display: flex;
   justify-content: flex-start;
@@ -54,15 +49,15 @@
   color: white;
 }
 
-#control-panel .option-text {
+.curtain-icon {
   margin-left: 10px;
 }
 
-#control-panel input[type="checkbox"] {
+.curtain-label input[type="checkbox"] {
   margin-right: 10px;
 }
 
-#close-panel {
+.curtain-close-button {
   all: unset;
   position: absolute;
   top: 15px;
@@ -70,7 +65,7 @@
   cursor: pointer;
 }
 
-#close-panel svg {
+.curtain-close-button svg {
   width: 16px;
   height: 16px;
   fill: none;
@@ -78,13 +73,13 @@
   stroke-width: 2;
 }
 
-#control-buttons {
+#curtain-control-buttons {
   display: flex;
   justify-content: space-between;
   width: 100%;
 }
 
-#control-buttons a {
+.curtain-button {
   background-color: white;
   border: none;
   color: black;
@@ -98,6 +93,10 @@
   width: 100%; /* Extending the button */
 }
 
-#control-buttons a:hover {
+.curtain-button:hover {
   background-color: #f0f0f0;
+}
+
+.no-greyscale {
+  filter: none !important;
 }
