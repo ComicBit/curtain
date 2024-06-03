@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Curtain",
-  "version": "0.1",
+  "version": "0.9",
   "description": "A Chrome extension to disable and replace images, videos, and SVGs on a webpage.",
   "permissions": ["activeTab", "scripting", "storage", "webNavigation"],
   "icons": {

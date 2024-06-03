@@ -57,6 +57,21 @@ if (typeof controlPanelInjected === "undefined") {
       toggleGreyscale.addEventListener("change", handleCheckboxChange);
       closePanel.addEventListener("click", function () {
         document.getElementById("curtain-control-panel").style.display = "none";
+        chrome.runtime.sendMessage({
+          action: "updatePanelState",
+          isVisible: false,
+        });
+      });
+
+      document.addEventListener("click", function (event) {
+        const panel = document.getElementById("curtain-control-panel");
+        if (panel && !panel.contains(event.target)) {
+          panel.style.display = "none";
+          chrome.runtime.sendMessage({
+            action: "updatePanelState",
+            isVisible: false,
+          });
+        }
       });
     } else {
       console.error(
@@ -113,10 +128,8 @@ if (typeof controlPanelInjected === "undefined") {
     );
     elements.forEach((element) => {
       if (enable) {
-        // Remove the inline background-image style to restore original background
         element.style.removeProperty("background-image");
       } else {
-        // Set the inline background-image style to none
         element.style.backgroundImage = "none";
       }
     });
@@ -218,6 +231,12 @@ if (typeof controlPanelInjected === "undefined") {
           sendResponse({ status: "Panel displayed" });
         });
       }
+    } else if (message.action === "hideControlPanel") {
+      const controlPanel = document.getElementById("curtain-control-panel");
+      if (controlPanel) {
+        controlPanel.style.display = "none";
+      }
+      sendResponse({ status: "Panel hidden" });
     }
   });
 
