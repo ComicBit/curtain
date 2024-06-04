@@ -16,8 +16,16 @@
   gap: 10px;
   color: white;
   font-family: Arial, sans-serif;
-  z-index: 10000; /* Ensure it's on top */
+  z-index: 10000;
   filter: none !important;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#curtain-control-panel.visible {
+  display: block;
+  opacity: 1;
 }
 
 #curtain-control-panel-content {
@@ -90,7 +98,20 @@
   font-size: 12px;
   border-radius: 5px;
   cursor: pointer;
-  width: 100%; /* Extending the button */
+  width: 100%;
+  text-decoration: none;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.curtain-button a {
+  text-decoration: none;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  color: #000000;
+}
+
+a:visited {
+  text-decoration: none;
+  color: #000000;
 }
 
 .curtain-button:hover {

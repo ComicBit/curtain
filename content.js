@@ -1,5 +1,6 @@
 if (typeof controlPanelInjected === "undefined") {
-  let controlPanelInjected = true;
+  let controlPanelInjected = false;
+  let controlPanelVisible = false;
   let currentUrl = window.location.hostname;
   let mediaSettings = {
     images: true,
@@ -10,21 +11,32 @@ if (typeof controlPanelInjected === "undefined") {
   };
 
   function injectControlPanel() {
-    if (document.getElementById("curtain-control-panel")) return;
+    return new Promise((resolve, reject) => {
+      if (document.getElementById("curtain-control-panel")) {
+        resolve();
+        return;
+      }
 
-    const controlPanelContainer = document.createElement("div");
-    controlPanelContainer.id = "curtain-control-panel-container";
+      const controlPanelContainer = document.createElement("div");
+      controlPanelContainer.id = "curtain-control-panel-container";
 
-    fetch(chrome.runtime.getURL("control-panel.html"))
-      .then((response) => response.text())
-      .then((html) => {
-        controlPanelContainer.innerHTML = html;
-        document.body.appendChild(controlPanelContainer);
-        attachStyles();
-        attachEventListeners();
-        restoreSettings();
-      })
-      .catch((err) => console.error("Error loading control panel HTML:", err));
+      fetch(chrome.runtime.getURL("control-panel.html"))
+        .then((response) => response.text())
+        .then((html) => {
+          controlPanelContainer.innerHTML = html;
+          document.body.appendChild(controlPanelContainer);
+          attachStyles();
+          attachEventListeners();
+          restoreSettings();
+          console.log("Control panel injected");
+          // Delay the resolve to ensure styles are applied before resolving
+          setTimeout(resolve, 50);
+        })
+        .catch((err) => {
+          console.error("Error loading control panel HTML:", err);
+          reject(err);
+        });
+    });
   }
 
   function attachStyles() {
@@ -56,7 +68,7 @@ if (typeof controlPanelInjected === "undefined") {
       toggleSvgs.addEventListener("change", handleCheckboxChange);
       toggleGreyscale.addEventListener("change", handleCheckboxChange);
       closePanel.addEventListener("click", function () {
-        document.getElementById("curtain-control-panel").style.display = "none";
+        fadeOutPanel();
         chrome.runtime.sendMessage({
           action: "updatePanelState",
           isVisible: false,
@@ -66,7 +78,8 @@ if (typeof controlPanelInjected === "undefined") {
       document.addEventListener("click", function (event) {
         const panel = document.getElementById("curtain-control-panel");
         if (panel && !panel.contains(event.target)) {
-          panel.style.display = "none";
+          console.log("Clicked outside panel, fading out");
+          fadeOutPanel();
           chrome.runtime.sendMessage({
             action: "updatePanelState",
             isVisible: false,
@@ -77,6 +90,31 @@ if (typeof controlPanelInjected === "undefined") {
       console.error(
         "Control panel elements not found for attaching event listeners."
       );
+    }
+  }
+
+  function fadeInPanel() {
+    const panel = document.getElementById("curtain-control-panel");
+    if (panel) {
+      console.log("Fading in panel");
+      panel.style.display = "block";
+      setTimeout(() => {
+        panel.classList.add("visible");
+      }, 50); // Increased delay to ensure the transition starts properly
+      controlPanelVisible = true;
+    }
+  }
+
+  function fadeOutPanel() {
+    const panel = document.getElementById("curtain-control-panel");
+    if (panel) {
+      console.log("Fading out panel");
+      panel.classList.remove("visible");
+      panel.addEventListener("transitionend", function handleTransitionEnd() {
+        panel.style.display = "none";
+        panel.removeEventListener("transitionend", handleTransitionEnd);
+      });
+      controlPanelVisible = false;
     }
   }
 
@@ -211,30 +249,25 @@ if (typeof controlPanelInjected === "undefined") {
   });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log("Received message:", message);
     if (message.action === "showControlPanel") {
-      if (document.readyState === "complete") {
-        injectControlPanel();
-        const controlPanel = document.getElementById("curtain-control-panel");
-        if (controlPanel) {
-          controlPanel.style.display = "block";
-        }
-        sendResponse({ status: "Panel displayed" });
-      } else {
-        showLoadingPopup();
-        window.addEventListener("load", () => {
-          hideLoadingPopup();
-          injectControlPanel();
-          const controlPanel = document.getElementById("curtain-control-panel");
-          if (controlPanel) {
-            controlPanel.style.display = "block";
-          }
-          sendResponse({ status: "Panel displayed" });
+      console.log("Action: showControlPanel");
+      if (!controlPanelInjected) {
+        console.log("Injecting control panel...");
+        injectControlPanel().then(() => {
+          fadeInPanel();
         });
+        controlPanelInjected = true;
+      } else if (!controlPanelVisible) {
+        console.log("Fading in control panel...");
+        fadeInPanel();
       }
+      sendResponse({ status: "Panel displayed" });
     } else if (message.action === "hideControlPanel") {
-      const controlPanel = document.getElementById("curtain-control-panel");
-      if (controlPanel) {
-        controlPanel.style.display = "none";
+      console.log("Action: hideControlPanel");
+      if (controlPanelVisible) {
+        console.log("Fading out control panel...");
+        fadeOutPanel();
       }
       sendResponse({ status: "Panel hidden" });
     }
