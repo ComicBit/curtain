@@ -28,12 +28,10 @@ if (typeof controlPanelInjected === "undefined") {
           attachStyles();
           attachEventListeners();
           restoreSettings();
-          console.log("Control panel injected");
           // Delay the resolve to ensure styles are applied before resolving
           setTimeout(resolve, 50);
         })
         .catch((err) => {
-          console.error("Error loading control panel HTML:", err);
           reject(err);
         });
     });
@@ -74,18 +72,6 @@ if (typeof controlPanelInjected === "undefined") {
           isVisible: false,
         });
       });
-
-      document.addEventListener("click", function (event) {
-        const panel = document.getElementById("curtain-control-panel");
-        if (panel && !panel.contains(event.target)) {
-          console.log("Clicked outside panel, fading out");
-          fadeOutPanel();
-          chrome.runtime.sendMessage({
-            action: "updatePanelState",
-            isVisible: false,
-          });
-        }
-      });
     } else {
       console.error(
         "Control panel elements not found for attaching event listeners."
@@ -93,14 +79,38 @@ if (typeof controlPanelInjected === "undefined") {
     }
   }
 
+  function addDocumentClickListener() {
+    document.addEventListener("click", handleDocumentClick);
+  }
+
+  function removeDocumentClickListener() {
+    document.removeEventListener("click", handleDocumentClick);
+  }
+
+  function handleDocumentClick(event) {
+    const panel = document.getElementById("curtain-control-panel");
+    if (!panel) return;
+
+    const clickedOutsidePanel = !panel.contains(event.target);
+    const isVideoElement = event.target.tagName === "VIDEO";
+
+    if (clickedOutsidePanel && !isVideoElement && controlPanelVisible) {
+      fadeOutPanel();
+      chrome.runtime.sendMessage({
+        action: "updatePanelState",
+        isVisible: false,
+      });
+    }
+  }
+
   function fadeInPanel() {
     const panel = document.getElementById("curtain-control-panel");
     if (panel) {
-      console.log("Fading in panel");
       panel.style.display = "block";
       setTimeout(() => {
         panel.classList.add("visible");
-      }, 50); // Increased delay to ensure the transition starts properly
+        addDocumentClickListener(); // Add listener when panel is visible
+      }, 50);
       controlPanelVisible = true;
     }
   }
@@ -108,11 +118,11 @@ if (typeof controlPanelInjected === "undefined") {
   function fadeOutPanel() {
     const panel = document.getElementById("curtain-control-panel");
     if (panel) {
-      console.log("Fading out panel");
       panel.classList.remove("visible");
       panel.addEventListener("transitionend", function handleTransitionEnd() {
         panel.style.display = "none";
         panel.removeEventListener("transitionend", handleTransitionEnd);
+        removeDocumentClickListener(); // Remove listener when panel is hidden
       });
       controlPanelVisible = false;
     }
@@ -238,35 +248,27 @@ if (typeof controlPanelInjected === "undefined") {
 
   function init() {
     restoreSettings();
+    window.addEventListener("load", () => {
+      handleMediaSettings(); // Apply settings after the page has fully loaded
+    });
   }
 
   // Automatically apply settings on page load
   init();
 
-  // Apply settings when the page is fully loaded
-  window.addEventListener("load", () => {
-    handleMediaSettings(); // Apply settings after the page has fully loaded
-  });
-
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log("Received message:", message);
     if (message.action === "showControlPanel") {
-      console.log("Action: showControlPanel");
       if (!controlPanelInjected) {
-        console.log("Injecting control panel...");
         injectControlPanel().then(() => {
           fadeInPanel();
         });
         controlPanelInjected = true;
       } else if (!controlPanelVisible) {
-        console.log("Fading in control panel...");
         fadeInPanel();
       }
       sendResponse({ status: "Panel displayed" });
     } else if (message.action === "hideControlPanel") {
-      console.log("Action: hideControlPanel");
       if (controlPanelVisible) {
-        console.log("Fading out control panel...");
         fadeOutPanel();
       }
       sendResponse({ status: "Panel hidden" });
