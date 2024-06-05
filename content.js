@@ -3,10 +3,10 @@ if (typeof controlPanelInjected === "undefined") {
   let controlPanelVisible = false;
   let currentUrl = window.location.hostname;
   let mediaSettings = {
-    images: false,
-    backgrounds: false,
-    videos: false,
-    svgs: false,
+    images: true,
+    backgrounds: true,
+    videos: true,
+    svgs: true,
     greyscale: false,
   };
 
