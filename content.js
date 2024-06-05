@@ -3,10 +3,10 @@ if (typeof controlPanelInjected === "undefined") {
   let controlPanelVisible = false;
   let currentUrl = window.location.hostname;
   let mediaSettings = {
-    images: true,
-    backgrounds: true,
-    videos: true,
-    svgs: true,
+    images: false,
+    backgrounds: false,
+    videos: false,
+    svgs: false,
     greyscale: false,
   };
 
@@ -27,8 +27,7 @@ if (typeof controlPanelInjected === "undefined") {
           document.body.appendChild(controlPanelContainer);
           attachStyles();
           attachEventListeners();
-          restoreSettings();
-          // Delay the resolve to ensure styles are applied before resolving
+          restoreSettings().then(() => handleMediaSettings());
           setTimeout(resolve, 50);
         })
         .catch((err) => {
@@ -172,7 +171,7 @@ if (typeof controlPanelInjected === "undefined") {
 
   function toggleBackgrounds(enable) {
     const elements = document.querySelectorAll(
-      "*:not(#curtain-control-panel):not(#curtain-control-panel *)"
+      "*:not(#curtain-control-panel):not(#curtain-control-panel *):not([data-layer])"
     );
     elements.forEach((element) => {
       if (enable) {
@@ -223,18 +222,22 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function restoreSettings() {
-    chrome.storage.local.get(["rules"], (result) => {
-      if (result.rules && result.rules[currentUrl]) {
-        mediaSettings = result.rules[currentUrl];
-        document.getElementById("toggle-images").checked = mediaSettings.images;
-        document.getElementById("toggle-backgrounds").checked =
-          mediaSettings.backgrounds;
-        document.getElementById("toggle-videos").checked = mediaSettings.videos;
-        document.getElementById("toggle-svgs").checked = mediaSettings.svgs;
-        document.getElementById("toggle-greyscale").checked =
-          mediaSettings.greyscale;
-        handleMediaSettings(); // Apply settings immediately
-      }
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["rules"], (result) => {
+        if (result.rules && result.rules[currentUrl]) {
+          mediaSettings = result.rules[currentUrl];
+          document.getElementById("toggle-images").checked =
+            mediaSettings.images;
+          document.getElementById("toggle-backgrounds").checked =
+            mediaSettings.backgrounds;
+          document.getElementById("toggle-videos").checked =
+            mediaSettings.videos;
+          document.getElementById("toggle-svgs").checked = mediaSettings.svgs;
+          document.getElementById("toggle-greyscale").checked =
+            mediaSettings.greyscale;
+        }
+        resolve();
+      });
     });
   }
 
@@ -247,14 +250,12 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function init() {
-    restoreSettings();
-    window.addEventListener("load", () => {
-      handleMediaSettings(); // Apply settings after the page has fully loaded
+    restoreSettings().then(() => {
+      handleMediaSettings(); // Apply settings after the settings are restored
     });
   }
 
-  // Automatically apply settings on page load
-  init();
+  init(); // Automatically apply settings on page load
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "showControlPanel") {
@@ -274,30 +275,4 @@ if (typeof controlPanelInjected === "undefined") {
       sendResponse({ status: "Panel hidden" });
     }
   });
-
-  function showLoadingPopup() {
-    const loadingPopup = document.createElement("div");
-    loadingPopup.id = "curtain-loading-popup";
-    loadingPopup.style = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 10px 20px;
-      background: #000;
-      color: #fff;
-      border-radius: 10px;
-      font-family: Arial, sans-serif;
-      z-index: 2147483647;
-    `;
-    loadingPopup.textContent = "Loading...";
-    document.body.appendChild(loadingPopup);
-  }
-
-  function hideLoadingPopup() {
-    const loadingPopup = document.getElementById("curtain-loading-popup");
-    if (loadingPopup) {
-      document.body.removeChild(loadingPopup);
-    }
-  }
 }
