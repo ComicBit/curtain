@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Curtain - Simplify, Focus, Control.",
   "version": "1.0.1",
-  "description": "A Chrome extension to disable and replace images, videos, and SVGs on a webpage.",
+  "description": "A Chrome extension to streamline your productivity disabling medias you don't need on a webpage.",
   "permissions": ["activeTab", "storage"],
   "icons": {
     "16": "icons/icon16.png",
