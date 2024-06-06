@@ -50,5 +50,3 @@ This project is licensed under the CC BY-NC 4.0 License - see the [LICENSE](LICE
 ---
 
 **Curtain** - Simplify, Focus, Control.
-
-![Curtain Icon](icons/icon128.png)
