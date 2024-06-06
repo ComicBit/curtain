@@ -1,6 +1,6 @@
 # Curtain - Chrome Extension
 
-![Curtain Icon](renditions/small.jpg)
+![Curtain Icon](renditions/large.jpg)
 
 Curtain is a Chrome extension designed to give you control over visual elements on webpages. With Curtain, you can hide images, videos, SVGs, and backgrounds, or apply a greyscale filter to reduce distractions and create a more focused browsing experience.
 
