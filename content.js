@@ -12,20 +12,151 @@ if (typeof controlPanelInjected === "undefined") {
 
   function injectControlPanel() {
     return new Promise((resolve, reject) => {
-      if (document.getElementById("curtain-control-panel")) {
+      if (document.getElementById("curtain-control-panel-container")) {
         resolve();
         return;
       }
 
-      const controlPanelContainer = document.createElement("div");
-      controlPanelContainer.id = "curtain-control-panel-container";
+      const controlPanelHost = document.createElement("div");
+      controlPanelHost.id = "curtain-control-panel-container";
+      controlPanelHost.setAttribute('data-layer', 'curtain');
+
+      // Create shadow root to isolate styles from page
+      const shadow = controlPanelHost.attachShadow({ mode: "open" });
 
       fetch(chrome.runtime.getURL("control-panel.html"))
         .then((response) => response.text())
         .then((html) => {
-          controlPanelContainer.innerHTML = html;
-          document.body.appendChild(controlPanelContainer);
-          attachStyles();
+          // Inline the HTML into the shadow root
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = html;
+
+          // Inline CSS into a <style> inside shadow root to prevent page styles from leaking in
+          const styleEl = document.createElement("style");
+          styleEl.textContent = `
+            /* Inlined control-panel.css - scoped to shadow root */
+            #curtain-control-panel {
+              all: unset;
+              position: fixed;
+              right: 20px;
+              bottom: 20px;
+              width: 170px;
+              padding: 15px;
+              background: #000;
+              border-radius: 20px;
+              box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+              outline: 1px solid rgba(255, 255, 255, 0.1);
+              display: flex;
+              flex-direction: column;
+              justify-content: flex-start;
+              align-items: flex-start;
+              gap: 10px;
+              color: white;
+              font-family: Arial, sans-serif;
+              z-index: 2147483647; /* max z-index to ensure visibility */
+              filter: none !important;
+              display: none;
+              opacity: 0;
+              transition: opacity 0.3s ease;
+            }
+
+            #curtain-control-panel.visible {
+              display: block;
+              opacity: 1;
+            }
+
+            #curtain-control-panel-content {
+              width: 100%;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            }
+
+            #curtain-control-panel h3 {
+              all: unset;
+              margin: 0;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+              padding-bottom: 10px;
+              width: 100%;
+              display: flex;
+              align-items: center;
+              font-family: Arial, sans-serif;
+              color: white;
+            }
+
+            .curtain-label {
+              all: unset;
+              display: flex;
+              justify-content: flex-start;
+              align-items: center;
+              width: 100%;
+              font-family: Arial, sans-serif;
+              color: white;
+            }
+
+            .curtain-icon {
+              margin-left: 10px;
+            }
+
+            .curtain-label input[type="checkbox"] {
+              margin-right: 10px;
+            }
+
+            .curtain-close-button {
+              all: unset;
+              position: absolute;
+              top: 15px;
+              right: 15px;
+              cursor: pointer;
+            }
+
+            .curtain-close-button svg {
+              width: 16px;
+              height: 16px;
+              fill: none;
+              stroke: #999;
+              stroke-width: 2;
+            }
+
+            #curtain-control-buttons {
+              display: flex;
+              justify-content: space-between;
+              width: 100%;
+            }
+
+            .curtain-button {
+              background-color: white;
+              border: none;
+              color: black;
+              padding: 5px 10px;
+              text-align: center;
+              text-decoration: none;
+              display: inline-block;
+              font-size: 12px;
+              border-radius: 5px;
+              cursor: pointer;
+              width: 100%;
+              text-decoration: none;
+              transition: background-color 0.3s ease, transform 0.3s ease;
+            }
+
+            .curtain-button a { color: #000000; }
+            .curtain-button:hover { background-color: #f0f0f0; }
+
+            .no-greyscale { filter: none !important; }
+          `;
+
+          // Append style and content inside shadow root
+          shadow.appendChild(styleEl);
+          // Move children of wrapper into shadow root
+          Array.from(wrapper.children).forEach((child) => shadow.appendChild(child));
+
+          document.body.appendChild(controlPanelHost);
+
+          // Save references for other functions
+          controlPanelHost.__shadow = shadow;
+
+          // After injecting, attach listeners and restore settings
           attachEventListeners();
           restoreSettings().then(() => handleMediaSettings());
           setTimeout(resolve, 50);
@@ -44,12 +175,15 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function attachEventListeners() {
-    const toggleImages = document.getElementById("toggle-images");
-    const toggleBackgrounds = document.getElementById("toggle-backgrounds");
-    const toggleVideos = document.getElementById("toggle-videos");
-    const toggleSvgs = document.getElementById("toggle-svgs");
-    const toggleGreyscale = document.getElementById("toggle-greyscale");
-    const closePanel = document.getElementById("curtain-close-panel");
+    const root = getPanelRoot();
+    if (!root) return;
+
+  const toggleImages = root.querySelector("#toggle-images");
+  const toggleBackgrounds = root.querySelector("#toggle-backgrounds");
+  const toggleVideos = root.querySelector("#toggle-videos");
+  const toggleSvgs = root.querySelector("#toggle-svgs");
+  const toggleGreyscale = root.querySelector("#toggle-greyscale");
+  const closePanel = root.querySelector("#curtain-close-panel");
 
     if (
       toggleImages &&
@@ -59,12 +193,29 @@ if (typeof controlPanelInjected === "undefined") {
       toggleGreyscale &&
       closePanel
     ) {
-      toggleImages.addEventListener("change", handleCheckboxChange);
-      toggleBackgrounds.addEventListener("change", handleCheckboxChange);
-      toggleVideos.addEventListener("change", handleCheckboxChange);
-      toggleSvgs.addEventListener("change", handleCheckboxChange);
-      toggleGreyscale.addEventListener("change", handleCheckboxChange);
-      closePanel.addEventListener("click", function () {
+      // Remove previous listeners if any by cloning nodes
+      [toggleImages, toggleBackgrounds, toggleVideos, toggleSvgs, toggleGreyscale].forEach((el) => {
+        const newEl = el.cloneNode(true);
+        el.parentNode.replaceChild(newEl, el);
+      });
+
+      // Re-obtain references after cloning
+      const tImg = root.querySelector("#toggle-images");
+      const tBg = root.querySelector("#toggle-backgrounds");
+      const tVid = root.querySelector("#toggle-videos");
+      const tSvg = root.querySelector("#toggle-svgs");
+      const tGrey = root.querySelector("#toggle-greyscale");
+
+      tImg.addEventListener("change", handleCheckboxChange);
+      tBg.addEventListener("change", handleCheckboxChange);
+      tVid.addEventListener("change", handleCheckboxChange);
+      tSvg.addEventListener("change", handleCheckboxChange);
+      tGrey.addEventListener("change", handleCheckboxChange);
+
+      // Ensure single click listener on close button
+  const newClose = closePanel.cloneNode(true);
+  closePanel.parentNode.replaceChild(newClose, closePanel);
+      newClose.addEventListener("click", function () {
         fadeOutPanel();
         chrome.runtime.sendMessage({
           action: "updatePanelState",
@@ -78,6 +229,13 @@ if (typeof controlPanelInjected === "undefined") {
     }
   }
 
+  // Returns the element root (shadow root or document) that contains the control panel elements
+  function getPanelRoot() {
+    const host = document.getElementById("curtain-control-panel-container");
+    if (!host) return null;
+    return host.__shadow || host; // shadow root or the host element (itself contains the nodes if not shadowed)
+  }
+
   function addDocumentClickListener() {
     document.addEventListener("click", handleDocumentClick);
   }
@@ -87,10 +245,16 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function handleDocumentClick(event) {
-    const panel = document.getElementById("curtain-control-panel");
-    if (!panel) return;
+    const host = document.getElementById("curtain-control-panel-container");
+    if (!host) return;
 
-    const clickedOutsidePanel = !panel.contains(event.target);
+    // If using shadow DOM, the actual panel is inside host.__shadow; clicking inside the shadow root will still have composedPath entries
+    const path = event.composedPath ? event.composedPath() : [event.target];
+    const clickedInsidePanel = path.some((node) => {
+      return node === host || node === host.__shadow || (host.__shadow && host.__shadow.host === node) || (node && node.getAttribute && node.getAttribute('data-layer') === 'curtain');
+    });
+
+    const clickedOutsidePanel = !clickedInsidePanel;
     const isVideoElement = event.target.tagName === "VIDEO";
 
     if (clickedOutsidePanel && !isVideoElement && controlPanelVisible) {
@@ -103,7 +267,9 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function fadeInPanel() {
-    const panel = document.getElementById("curtain-control-panel");
+    const root = getPanelRoot();
+    if (!root) return;
+  const panel = root.querySelector("#curtain-control-panel");
     if (panel) {
       panel.style.display = "block";
       setTimeout(() => {
@@ -115,7 +281,9 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function fadeOutPanel() {
-    const panel = document.getElementById("curtain-control-panel");
+    const root = getPanelRoot();
+    if (!root) return;
+  const panel = root.querySelector("#curtain-control-panel");
     if (panel) {
       panel.classList.remove("visible");
       panel.addEventListener("transitionend", function handleTransitionEnd() {
@@ -128,13 +296,15 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function handleCheckboxChange() {
-    mediaSettings.images = document.getElementById("toggle-images").checked;
+    const root = getPanelRoot();
+    if (!root) return;
+    mediaSettings.images = root.querySelector("#toggle-images").checked;
     mediaSettings.backgrounds =
-      document.getElementById("toggle-backgrounds").checked;
-    mediaSettings.videos = document.getElementById("toggle-videos").checked;
-    mediaSettings.svgs = document.getElementById("toggle-svgs").checked;
+      root.querySelector("#toggle-backgrounds").checked;
+    mediaSettings.videos = root.querySelector("#toggle-videos").checked;
+    mediaSettings.svgs = root.querySelector("#toggle-svgs").checked;
     mediaSettings.greyscale =
-      document.getElementById("toggle-greyscale").checked;
+      root.querySelector("#toggle-greyscale").checked;
     saveSettings();
     handleMediaSettings();
   }
@@ -226,15 +396,19 @@ if (typeof controlPanelInjected === "undefined") {
       chrome.storage.local.get(["rules"], (result) => {
         if (result.rules && result.rules[currentUrl]) {
           mediaSettings = result.rules[currentUrl];
-          document.getElementById("toggle-images").checked =
-            mediaSettings.images;
-          document.getElementById("toggle-backgrounds").checked =
-            mediaSettings.backgrounds;
-          document.getElementById("toggle-videos").checked =
-            mediaSettings.videos;
-          document.getElementById("toggle-svgs").checked = mediaSettings.svgs;
-          document.getElementById("toggle-greyscale").checked =
-            mediaSettings.greyscale;
+          const root = getPanelRoot();
+          if (root) {
+              const img = root.querySelector("#toggle-images");
+              const bg = root.querySelector("#toggle-backgrounds");
+              const vid = root.querySelector("#toggle-videos");
+              const svg = root.querySelector("#toggle-svgs");
+              const grey = root.querySelector("#toggle-greyscale");
+            if (img) img.checked = mediaSettings.images;
+            if (bg) bg.checked = mediaSettings.backgrounds;
+            if (vid) vid.checked = mediaSettings.videos;
+            if (svg) svg.checked = mediaSettings.svgs;
+            if (grey) grey.checked = mediaSettings.greyscale;
+          }
         }
         resolve();
       });

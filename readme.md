@@ -50,3 +50,15 @@ This project is licensed under the CC BY-NC 4.0 License - see the [LICENSE](LICE
 ---
 
 **Curtain** - Simplify, Focus, Control.
+
+## Developer Notes - Shadow DOM Isolation
+
+To prevent webpage styles from leaking into the control panel (which previously caused visual bugs), the control panel is now injected inside an open Shadow DOM. This isolates the extension's UI and inlines its CSS so pages cannot override our styles.
+
+Quick smoke-test steps:
+- Load the extension unpacked in Chrome/Edge/Firefox.
+- Open a webpage with aggressive CSS (e.g., pages that set * { all: unset } or strong global font/color rules).
+- Open the Curtain control panel via the extension action. The panel should appear styled consistently regardless of page styles.
+- Toggle images/backgrounds/videos/SVGs and verify the page elements change while the panel remains visually unaffected.
+
+If you find a site that still disturbs the UI, please report the page URL and a screenshot to help reproduce.
