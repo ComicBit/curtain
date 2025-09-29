@@ -9,6 +9,8 @@ if (typeof controlPanelInjected === "undefined") {
     svgs: true,
     greyscale: false,
   };
+  // Global settings are applied by default to all sites unless site-specific rules are enabled
+  let globalSettings = Object.assign({}, mediaSettings);
 
   function injectControlPanel() {
     return new Promise((resolve, reject) => {
@@ -133,7 +135,7 @@ if (typeof controlPanelInjected === "undefined") {
               text-decoration: none;
               display: inline-block;
               font-size: 12px;
-              border-radius: 5px;
+              border-radius: 14px;
               cursor: pointer;
               width: 100%;
               text-decoration: none;
@@ -141,7 +143,29 @@ if (typeof controlPanelInjected === "undefined") {
             }
 
             .curtain-button a { color: #000000; }
-            .curtain-button:hover { background-color: #f0f0f0; }
+            /* Do not change background for site-rules-button on hover */
+            .curtain-button:hover:not(.site-rules-button) { background-color: #f0f0f0; }
+
+            /* Site rules toggle button - consistent look in both states */
+            .site-rules-button {
+              border: 1px dashed #999;
+              background: transparent;
+              color: white;
+              width: 100%;
+              text-align: center;
+              padding: 8px;
+              box-sizing: border-box;
+              border-radius: 14px;
+              transition: background-color 0.2s ease, border-color 0.2s ease;
+              cursor: pointer;
+            }
+
+            /* Keep active state visually identical to default for site-rules-button */
+            .site-rules-button.active {
+              border: 1px dashed #999;
+              background: transparent;
+              color: white;
+            }
 
             .no-greyscale { filter: none !important; }
           `;
@@ -158,7 +182,27 @@ if (typeof controlPanelInjected === "undefined") {
 
           // After injecting, attach listeners and restore settings
           attachEventListeners();
-          restoreSettings().then(() => handleMediaSettings());
+          // Initialize scope controls (site-rules-toggle)
+          chrome.storage.local.get(["rules", "globalSettings"], (res) => {
+            const rules = res.rules || {};
+            if (res.globalSettings) globalSettings = res.globalSettings;
+            const root = controlPanelHost.__shadow;
+            if (root) {
+              const siteRulesToggle = root.querySelector('#site-rules-toggle');
+              if (siteRulesToggle) {
+                if (rules[currentUrl]) {
+                  siteRulesToggle.textContent = 'Remove site-specific rules';
+                  siteRulesToggle.classList.add('active');
+                  siteRulesToggle.setAttribute('aria-pressed', 'true');
+                } else {
+                  siteRulesToggle.textContent = 'Add website specific rules';
+                  siteRulesToggle.classList.remove('active');
+                  siteRulesToggle.setAttribute('aria-pressed', 'false');
+                }
+              }
+            }
+            restoreSettings().then(() => handleMediaSettings());
+          });
           setTimeout(resolve, 50);
         })
         .catch((err) => {
@@ -168,10 +212,8 @@ if (typeof controlPanelInjected === "undefined") {
   }
 
   function attachStyles() {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = chrome.runtime.getURL("control-panel.css");
-    document.head.appendChild(link);
+    // Styles are inlined into the ShadowRoot; this function is deprecated.
+    return;
   }
 
   function attachEventListeners() {
@@ -222,11 +264,87 @@ if (typeof controlPanelInjected === "undefined") {
           isVisible: false,
         });
       });
+
+      // Wire site rules toggle button which acts as either 'Add website specific rules' or 'Remove site-specific rules'
+      const siteRulesToggle = root.querySelector('#site-rules-toggle');
+      if (siteRulesToggle) {
+        siteRulesToggle.addEventListener('click', function () {
+          // Check whether a site-specific rule exists currently
+          chrome.storage.local.get(['rules'], (res) => {
+            const rules = res.rules || {};
+            const hasRule = !!rules[currentUrl];
+            if (hasRule) {
+              // Remove site-specific rule and immediately apply global settings
+              delete rules[currentUrl];
+              chrome.storage.local.set({ rules }, () => {
+                loadGlobalSettings().then(() => {
+                  mediaSettings = Object.assign({}, globalSettings);
+                  applySettingsToUI(globalSettings);
+                  handleMediaSettings();
+                  // update button appearance (toggle class)
+                  siteRulesToggle.textContent = 'Add website specific rules';
+                  siteRulesToggle.classList.remove('active');
+                  siteRulesToggle.setAttribute('aria-pressed', 'false');
+                });
+              });
+            } else {
+              // Create a site-specific rule from current UI state
+              // Ensure mediaSettings are current
+              mediaSettings = {
+                images: root.querySelector('#toggle-images').checked,
+                backgrounds: root.querySelector('#toggle-backgrounds').checked,
+                videos: root.querySelector('#toggle-videos').checked,
+                svgs: root.querySelector('#toggle-svgs').checked,
+                greyscale: root.querySelector('#toggle-greyscale').checked,
+              };
+              rules[currentUrl] = mediaSettings;
+              chrome.storage.local.set({ rules }, () => {
+                // update button appearance (toggle class)
+                siteRulesToggle.textContent = 'Remove site-specific rules';
+                siteRulesToggle.classList.add('active');
+                siteRulesToggle.setAttribute('aria-pressed', 'true');
+              });
+            }
+          });
+        });
+      }
     } else {
       console.error(
         "Control panel elements not found for attaching event listeners."
       );
     }
+  }
+
+  function loadGlobalSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["globalSettings"], (res) => {
+        if (res.globalSettings) {
+          globalSettings = res.globalSettings;
+        } else {
+          globalSettings = Object.assign({}, mediaSettings);
+        }
+        resolve();
+      });
+    });
+  }
+
+  function saveGlobalSettings() {
+    chrome.storage.local.set({ globalSettings });
+  }
+
+  function applySettingsToUI(settings) {
+    const root = getPanelRoot();
+    if (!root) return;
+    const img = root.querySelector("#toggle-images");
+    const bg = root.querySelector("#toggle-backgrounds");
+    const vid = root.querySelector("#toggle-videos");
+    const svg = root.querySelector("#toggle-svgs");
+    const grey = root.querySelector("#toggle-greyscale");
+    if (img) img.checked = !!settings.images;
+    if (bg) bg.checked = !!settings.backgrounds;
+    if (vid) vid.checked = !!settings.videos;
+    if (svg) svg.checked = !!settings.svgs;
+    if (grey) grey.checked = !!settings.greyscale;
   }
 
   // Returns the element root (shadow root or document) that contains the control panel elements
@@ -305,7 +423,16 @@ if (typeof controlPanelInjected === "undefined") {
     mediaSettings.svgs = root.querySelector("#toggle-svgs").checked;
     mediaSettings.greyscale =
       root.querySelector("#toggle-greyscale").checked;
-    saveSettings();
+    // Decide whether to save as global or site-specific based on the site-rules toggle
+    const siteRulesToggle = root.querySelector('#site-rules-toggle');
+    const siteTogglePressed = siteRulesToggle && siteRulesToggle.getAttribute('aria-pressed') === 'true';
+    if (siteTogglePressed) {
+      saveSettings(true);
+    } else {
+      // Save as global defaults
+      globalSettings = Object.assign({}, mediaSettings);
+      saveGlobalSettings();
+    }
     handleMediaSettings();
   }
 
@@ -393,34 +520,51 @@ if (typeof controlPanelInjected === "undefined") {
 
   function restoreSettings() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(["rules"], (result) => {
-        if (result.rules && result.rules[currentUrl]) {
-          mediaSettings = result.rules[currentUrl];
+      // Load global options first
+      loadGlobalSettings().then(() => {
+        chrome.storage.local.get(["rules"], (result) => {
           const root = getPanelRoot();
-          if (root) {
-              const img = root.querySelector("#toggle-images");
-              const bg = root.querySelector("#toggle-backgrounds");
-              const vid = root.querySelector("#toggle-videos");
-              const svg = root.querySelector("#toggle-svgs");
-              const grey = root.querySelector("#toggle-greyscale");
-            if (img) img.checked = mediaSettings.images;
-            if (bg) bg.checked = mediaSettings.backgrounds;
-            if (vid) vid.checked = mediaSettings.videos;
-            if (svg) svg.checked = mediaSettings.svgs;
-            if (grey) grey.checked = mediaSettings.greyscale;
+          const siteRulesToggle = root && root.querySelector('#site-rules-toggle');
+          const rules = result.rules || {};
+          const hasRule = !!rules[currentUrl];
+          if (hasRule) {
+            mediaSettings = rules[currentUrl];
+            applySettingsToUI(mediaSettings);
+            if (siteRulesToggle) {
+              siteRulesToggle.textContent = 'Remove site-specific rules';
+              siteRulesToggle.classList.add('active');
+              siteRulesToggle.setAttribute('aria-pressed', 'true');
+            }
+          } else {
+            // Default to global settings
+            mediaSettings = Object.assign({}, globalSettings);
+            applySettingsToUI(globalSettings);
+            if (siteRulesToggle) {
+              siteRulesToggle.textContent = 'Add website specific rules';
+              siteRulesToggle.classList.remove('active');
+              siteRulesToggle.setAttribute('aria-pressed', 'false');
+            }
           }
-        }
-        resolve();
+          resolve();
+        });
       });
     });
   }
 
   function saveSettings() {
-    chrome.storage.local.get(["rules"], (result) => {
-      const rules = result.rules || {};
-      rules[currentUrl] = mediaSettings;
-      chrome.storage.local.set({ rules });
-    });
+    // default: save site-specific unless flag false
+    const saveAsSite = arguments.length ? arguments[0] === true : true;
+    if (saveAsSite) {
+      chrome.storage.local.get(["rules"], (result) => {
+        const rules = result.rules || {};
+        rules[currentUrl] = mediaSettings;
+        chrome.storage.local.set({ rules });
+      });
+    } else {
+      // Save as global settings
+      globalSettings = Object.assign({}, mediaSettings);
+      saveGlobalSettings();
+    }
   }
 
   function init() {

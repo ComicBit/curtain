@@ -1,6 +1,7 @@
 <div id="curtain-control-panel">
   <div id="curtain-control-panel-content">
     <h3>Curtain Control</h3>
+    <!-- scope controls moved down to be last option before donate -->
     <label class="curtain-label">
       <input type="checkbox" id="toggle-images" checked />
       Images <i class="curtain-icon"></i>
@@ -15,12 +16,22 @@
     </label>
     <label class="curtain-label">
       <input type="checkbox" id="toggle-svgs" checked />
-      SVGs <i class="curtain-icon"></i>
+      Icons <i class="curtain-icon"></i>
     </label>
     <label class="curtain-label">
       <input type="checkbox" id="toggle-greyscale" />
       Greyscale <i class="curtain-icon"></i>
     </label>
+
+    <div id="curtain-scope-controls">
+      <button
+        id="site-rules-toggle"
+        class="curtain-button site-rules-button"
+        aria-pressed="false"
+      >
+        Add website specific rules
+      </button>
+    </div>
 
     <div id="curtain-control-buttons">
       <a
@@ -32,7 +43,7 @@
         Buy me a coffee
       </a>
     </div>
-    
+
     <div id="curtain-close-panel" class="curtain-close-button">
       <svg
         xmlns="http://www.w3.org/2000/svg"

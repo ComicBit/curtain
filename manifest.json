@@ -18,7 +18,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["control-panel.html", "control-panel.css"],
+      "resources": ["control-panel.html"],
       "matches": ["<all_urls>"]
     }
   ],

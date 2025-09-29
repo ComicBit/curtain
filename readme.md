@@ -62,3 +62,16 @@ Quick smoke-test steps:
 - Toggle images/backgrounds/videos/SVGs and verify the page elements change while the panel remains visually unaffected.
 
 If you find a site that still disturbs the UI, please report the page URL and a screenshot to help reproduce.
+
+## Global vs Website-specific rules
+
+Behavior:
+- By default, Curtain applies a single set of global settings to every website.
+- In the control panel, users can enable "Add website specific rules" for the current site. When enabled, the extension stores a per-site rule that overrides the global defaults for that hostname.
+- Users can remove a per-site rule with the "Remove site-specific rules" button, reverting that site to the global defaults.
+
+Storage:
+- Global defaults are stored under `chrome.storage.local.globalSettings`.
+- Per-site rules are stored in an object `chrome.storage.local.rules` indexed by hostname.
+
+This change keeps the common case simple (one set of preferences for all sites) while allowing exceptions for specific sites.
